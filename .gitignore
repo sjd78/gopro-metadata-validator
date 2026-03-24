@@ -1,0 +1,24 @@
+# TypeScript
+ts-validator/node_modules/
+ts-validator/dist/
+
+# Go build
+go-validator/gopro-validator
+
+# Common
+*.log
+.DS_Store
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Output directories
+renamed-files/
+concatenated-files/
+
+# Sample files (too large for git)
+sample-input-files/
+
+# Claude Code settings (local only)
+.claude/

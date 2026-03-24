@@ -1,0 +1,23 @@
+{
+  "name": "gopro-metadata-validator",
+  "version": "1.0.0",
+  "description": "Validate GoPro video metadata against embedded GPS telemetry data",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsx src/index.ts"
+  },
+  "keywords": ["gopro", "gps", "metadata", "telemetry"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "gpmf-extract": "^0.3.1",
+    "gopro-telemetry": "^0.6.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.3"
+  }
+}
