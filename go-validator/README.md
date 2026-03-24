@@ -64,6 +64,7 @@ See [USAGE.md](USAGE.md) for detailed documentation and [CONCAT.md](CONCAT.md) f
 ## Command-Line Options
 
 ```
+  --version            Show version and exit
   --input DIR          Input directory containing GoPro files (default: current directory)
   --rename             Rename and move files based on GPS timestamps
   --update-metadata    Update MP4 metadata to match GPS timestamps

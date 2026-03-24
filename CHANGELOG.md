@@ -1,6 +1,29 @@
 # Changelog
 
-## 2026-03-24 (Update 3)
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+### Added
+- Version flag (`--version`) to display tool version
+- Automated release builds for multiple platforms (Linux, macOS, Windows on amd64/arm64)
+- GitHub Actions workflow for version-tagged releases
+- GitHub Actions workflow for latest development builds on push to main
+- Version injection via build-time ldflags
+- SHA256 checksums for release binaries
+- Pre-release detection for alpha/beta/rc tags
+- Makefile support for version injection (`make build VERSION=v1.0.0`)
+
+### Changed
+- Restructured CHANGELOG to follow Keep a Changelog format
+- Added semantic versioning scheme to project
+
+## Historical Updates (Pre-v1.0.0)
+
+### 2026-03-24 (Update 3)
 
 ### Project Focus
 - **Archived** TypeScript version - marked as reference implementation

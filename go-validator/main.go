@@ -9,17 +9,27 @@ import (
 )
 
 var (
+	// Version is set via ldflags at build time
+	Version = "dev"
+
 	inputDir        = flag.String("input", "", "Input directory containing GoPro files (default: current directory)")
 	renameFiles     = flag.Bool("rename", false, "Rename and move files based on GPS timestamps")
 	updateMetadata  = flag.Bool("update-metadata", false, "Update MP4 metadata to match GPS timestamps")
 	concatChapters  = flag.Bool("concat", false, "Concatenate chapter files into complete recordings")
 	dryRun          = flag.Bool("dry-run", false, "Show what would be done without making changes")
+	versionFlag     = flag.Bool("version", false, "Show version and exit")
 	outputDir       = flag.String("output", "renamed-files", "Output directory for renamed files")
 	concatOutputDir = flag.String("concat-output", "concatenated-files", "Output directory for concatenated files")
 )
 
 func main() {
 	flag.Parse()
+
+	// Handle version flag
+	if *versionFlag {
+		fmt.Printf("gopro-validator %s\n", Version)
+		os.Exit(0)
+	}
 
 	// Determine input directory
 	scanDir := *inputDir

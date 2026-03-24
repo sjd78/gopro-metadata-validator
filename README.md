@@ -40,6 +40,61 @@ This project uses **Go** for the production implementation. A TypeScript version
 
 ---
 
+## Installation
+
+### Option 1: Download Pre-built Binary
+
+Download the latest release for your platform from the [Releases page](https://github.com/sjd78/gopro-metadata-validator/releases).
+
+**Stable Releases:**
+- [Latest stable release](https://github.com/sjd78/gopro-metadata-validator/releases/latest) - Recommended for most users
+
+**Development Builds:**
+- [Latest development build](https://github.com/sjd78/gopro-metadata-validator/releases/tag/latest) - Cutting-edge features from main branch
+
+**Platform Downloads:**
+
+```bash
+# Linux (x86_64)
+wget https://github.com/sjd78/gopro-metadata-validator/releases/latest/download/gopro-validator-linux-amd64
+chmod +x gopro-validator-linux-amd64
+./gopro-validator-linux-amd64 --version
+
+# Linux (ARM64 - Raspberry Pi, etc.)
+wget https://github.com/sjd78/gopro-metadata-validator/releases/latest/download/gopro-validator-linux-arm64
+chmod +x gopro-validator-linux-arm64
+
+# macOS (Apple Silicon)
+wget https://github.com/sjd78/gopro-metadata-validator/releases/latest/download/gopro-validator-darwin-arm64
+chmod +x gopro-validator-darwin-arm64
+
+# macOS (Intel)
+wget https://github.com/sjd78/gopro-metadata-validator/releases/latest/download/gopro-validator-darwin-amd64
+chmod +x gopro-validator-darwin-amd64
+
+# Windows (PowerShell) - x86_64
+Invoke-WebRequest -Uri "https://github.com/sjd78/gopro-metadata-validator/releases/latest/download/gopro-validator-windows-amd64.exe" -OutFile "gopro-validator.exe"
+```
+
+**Verify Downloads:**
+Download `checksums.txt` and verify:
+```bash
+sha256sum -c checksums.txt
+```
+
+### Option 2: Build from Source
+
+Requires Go 1.21 or later and ffmpeg/ffprobe.
+
+```bash
+git clone https://github.com/sjd78/gopro-metadata-validator.git
+cd gopro-metadata-validator/go-validator
+go build -o gopro-validator
+./gopro-validator --version
+```
+
+---
+
 ## Quick Start
 
 ### Production Version (Go)
