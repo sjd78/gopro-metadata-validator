@@ -14,8 +14,8 @@ type GPSData struct {
 	LastTimestampMs  *int64
 	SampleCount      int
 	HasValidGPS      bool
-	FirstGPSTime     *time.Time  // Absolute GPS UTC time from GPMF
-	LastGPSTime      *time.Time  // Last GPS UTC time
+	FirstGPSTime     *time.Time // Absolute GPS UTC time from GPMF
+	LastGPSTime      *time.Time // Last GPS UTC time
 }
 
 type ValidationResult struct {

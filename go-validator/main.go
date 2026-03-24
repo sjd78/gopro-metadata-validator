@@ -65,21 +65,21 @@ func main() {
 	if *renameFiles {
 		fmt.Println("\n" + "================================================================================")
 		fmt.Println("FILE RENAMING PLAN")
-		fmt.Println("================================================================================\n")
+		fmt.Println("================================================================================")
 		renameFilesBasedOnGPS(results, *outputDir, *dryRun)
 	}
 
 	if *updateMetadata {
 		fmt.Println("\n" + "================================================================================")
 		fmt.Println("METADATA UPDATE PLAN")
-		fmt.Println("================================================================================\n")
+		fmt.Println("================================================================================")
 		updateFileMetadata(results, *dryRun)
 	}
 
 	if *concatChapters {
 		fmt.Println("\n" + "================================================================================")
 		fmt.Println("CHAPTER CONCATENATION PLAN")
-		fmt.Println("================================================================================\n")
+		fmt.Println("================================================================================")
 		concatenateChapters(results, *concatOutputDir, *dryRun)
 	}
 }
@@ -105,7 +105,7 @@ func findMP4Files(root string) ([]string, error) {
 func printResults(results []*ValidationResult) {
 	fmt.Println("\n" + "================================================================================")
 	fmt.Println("VALIDATION RESULTS")
-	fmt.Println("================================================================================\n")
+	fmt.Println("================================================================================")
 
 	validCount := 0
 	invalidCount := 0

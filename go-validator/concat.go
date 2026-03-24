@@ -12,9 +12,9 @@ import (
 
 // ChapterSeries represents a group of files that are chapters of the same recording
 type ChapterSeries struct {
-	BaseNumber string              // e.g., "6978"
-	Files      []string            // Sorted list of chapter files
-	StartTime  string              // Recording start time from GPS
+	BaseNumber string   // e.g., "6978"
+	Files      []string // Sorted list of chapter files
+	StartTime  string   // Recording start time from GPS
 }
 
 // detectChapterSeries groups files into chapter series (GH01xxxx, GH02xxxx, etc.)
