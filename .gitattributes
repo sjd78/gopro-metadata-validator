@@ -1,0 +1,13 @@
+# Enforce LF line endings for Go source files on all platforms
+# This prevents formatting issues in CI when running on Windows
+*.go text eol=lf
+
+# Markdown files use LF
+*.md text eol=lf
+
+# Shell scripts use LF
+*.sh text eol=lf
+
+# YAML files use LF
+*.yml text eol=lf
+*.yaml text eol=lf
