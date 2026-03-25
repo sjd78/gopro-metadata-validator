@@ -9,6 +9,15 @@ type Metadata struct {
 	Timecode     string
 }
 
+type GPSCoordinate struct {
+	Timestamp int64   // Relative ms from recording start
+	Latitude  float64 // Decimal degrees
+	Longitude float64 // Decimal degrees
+	Altitude  float64 // Meters
+	Speed2D   float64 // m/s horizontal
+	Speed3D   float64 // m/s total
+}
+
 type GPSData struct {
 	FirstTimestampMs *int64
 	LastTimestampMs  *int64
@@ -16,6 +25,13 @@ type GPSData struct {
 	HasValidGPS      bool
 	FirstGPSTime     *time.Time // Absolute GPS UTC time from GPMF
 	LastGPSTime      *time.Time // Last GPS UTC time
+
+	// GPS5 coordinate data
+	Coordinates []GPSCoordinate // Multiple GPS samples throughout recording
+
+	// GPS quality data
+	GPSFix       *string  // "NONE", "2D", "3D"
+	GPSPrecision *float64 // DOP (Dilution of Precision)
 }
 
 type ValidationResult struct {

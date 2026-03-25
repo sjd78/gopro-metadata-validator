@@ -16,6 +16,7 @@ var (
 	renameFiles     = flag.Bool("rename", false, "Rename and move files based on GPS timestamps")
 	updateMetadata  = flag.Bool("update-metadata", false, "Update MP4 metadata to match GPS timestamps")
 	concatChapters  = flag.Bool("concat", false, "Concatenate chapter files into complete recordings")
+	writeSidecar    = flag.Bool("write-sidecar", false, "Write XMP sidecar files with GPMF metadata")
 	dryRun          = flag.Bool("dry-run", false, "Show what would be done without making changes")
 	versionFlag     = flag.Bool("version", false, "Show version and exit")
 	outputDir       = flag.String("output", "renamed-files", "Output directory for renamed files")
@@ -70,6 +71,14 @@ func main() {
 	}
 
 	printResults(results)
+
+	// Write sidecar files if requested
+	if *writeSidecar {
+		fmt.Println("\n" + "================================================================================")
+		fmt.Println("WRITING SIDECAR FILES")
+		fmt.Println("================================================================================")
+		writeSidecarFiles(results, *dryRun)
+	}
 
 	// Perform actions based on flags
 	if *renameFiles {
@@ -175,4 +184,32 @@ func printResults(results []*ValidationResult) {
 	fmt.Println("================================================================================")
 	fmt.Printf("Summary: %d valid, %d with issues\n", validCount, invalidCount)
 	fmt.Println("================================================================================")
+}
+
+func writeSidecarFiles(results []*ValidationResult, dryRun bool) {
+	written := 0
+	skipped := 0
+
+	for _, result := range results {
+		if err := WriteSidecarFile(result, dryRun); err != nil {
+			fmt.Printf("✗ Error writing sidecar for %s: %v\n",
+				filepath.Base(result.FilePath), err)
+			skipped++
+			continue
+		}
+
+		if result.GPSData != nil && result.GPSData.HasValidGPS {
+			written++
+		} else {
+			skipped++
+		}
+	}
+
+	fmt.Println("\n" + "--------------------------------------------------------------------------------")
+	if dryRun {
+		fmt.Printf("Dry run: %d sidecar files would be written, %d skipped\n", written, skipped)
+		fmt.Printf("Run without --dry-run to actually write sidecar files\n")
+	} else {
+		fmt.Printf("Complete: %d sidecar files written, %d skipped (no GPS data)\n", written, skipped)
+	}
 }
