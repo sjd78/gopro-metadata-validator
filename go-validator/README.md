@@ -69,9 +69,42 @@ See [USAGE.md](USAGE.md) for detailed documentation and [CONCAT.md](CONCAT.md) f
   --rename             Rename and move files based on GPS timestamps
   --update-metadata    Update MP4 metadata to match GPS timestamps
   --concat             Concatenate chapter files into complete recordings
+  --write-sidecar      Write XMP sidecar files with GPMF metadata
   --dry-run            Show what would be done without making changes
   --output DIR         Output directory for renamed files (default: renamed-files)
   --concat-output DIR  Output directory for concatenated files (default: concatenated-files)
+```
+
+## XMP Sidecar Files
+
+Export GPMF metadata to XMP sidecar files for use with exiftool:
+
+```bash
+# Generate XMP sidecars alongside video files
+./gopro-validator --input /path/to/videos --write-sidecar
+```
+
+This creates `.xmp` files (e.g., `GH016978.MP4.xmp`) containing:
+- GPS timestamps and recording start time
+- GPS lock delay (time from recording start to GPS lock)
+- Tool processing information
+
+**Using with exiftool to embed metadata:**
+
+```bash
+# Embed XMP metadata into a single MP4 file
+exiftool -tagsFromFile video.mp4.xmp -all:all video.mp4
+
+# Batch process all MP4 files in a directory
+exiftool -tagsFromFile %f.xmp -all:all -ext MP4 /path/to/videos/
+```
+
+**Benefits:**
+- Non-destructive (doesn't modify original files)
+- Standard format (compatible with Lightroom, Bridge, etc.)
+- Flexible (choose which metadata to embed with exiftool)
+
+**Note:** GPS coordinates (lat/lon/altitude) will be added in a future update when GPS5 binary parsing is implemented.
 ```
 
 ## How It Works
