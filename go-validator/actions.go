@@ -42,6 +42,9 @@ func renameFilesBasedOnGPS(results []*ValidationResult, outputDir string, dryRun
 		dateDir := filepath.Join(outputDir, actualStartTime.Format("2006-01-02"))
 		newPath := filepath.Join(dateDir, newFilename)
 
+		// Ensure unique filename to avoid overwriting existing files
+		newPath = GenerateUniqueFilename(newPath)
+
 		if dryRun {
 			fmt.Printf("📋 Would rename:\n")
 			fmt.Printf("   From: %s\n", result.FilePath)
@@ -186,4 +189,29 @@ func calculateRecordingStartTime(gpsData *GPSData) time.Time {
 	}
 
 	return actualStart
+}
+
+// GenerateUniqueFilename ensures the output path doesn't exist by appending (1), (2), etc.
+// Pattern: "file.mp4" → "file (1).mp4" → "file (2).mp4"
+func GenerateUniqueFilename(path string) string {
+	// If file doesn't exist, return original path
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		return path
+	}
+
+	// File exists, need to add suffix
+	dir := filepath.Dir(path)
+	ext := filepath.Ext(path)
+	base := filepath.Base(path)
+	nameWithoutExt := strings.TrimSuffix(base, ext)
+
+	// Try (1), (2), (3), etc. until we find a free name
+	for i := 1; ; i++ {
+		newName := fmt.Sprintf("%s (%d)%s", nameWithoutExt, i, ext)
+		newPath := filepath.Join(dir, newName)
+
+		if _, err := os.Stat(newPath); os.IsNotExist(err) {
+			return newPath
+		}
+	}
 }

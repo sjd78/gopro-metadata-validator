@@ -106,6 +106,10 @@ func concatenateChapters(results []*ValidationResult, outputDir string, dryRun b
 		}
 		outputPath := filepath.Join(outputDir, outputName)
 
+		// Ensure unique filename to avoid overwriting existing files
+		outputPath = GenerateUniqueFilename(outputPath)
+		outputName = filepath.Base(outputPath)
+
 		if dryRun {
 			fmt.Printf("📋 Would concatenate %d chapters:\n", len(s.Files))
 			for i, file := range s.Files {
