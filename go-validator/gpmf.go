@@ -106,9 +106,9 @@ func extractGPMFStream(filePath string) ([]byte, error) {
 
 func parseGPMFData(data []byte) (*GPSData, error) {
 	result := &GPSData{
-		SampleCount:  0,
-		HasValidGPS:  false,
-		Coordinates:  make([]GPSCoordinate, 0),
+		SampleCount: 0,
+		HasValidGPS: false,
+		Coordinates: make([]GPSCoordinate, 0),
 	}
 
 	timestamps := make([]int64, 0)
@@ -205,7 +205,7 @@ func parseGPMFData(data []byte) (*GPSData, error) {
 				// Apply scale factors (use confirmed standard defaults if SCAL missing)
 				latScale := int32(10000000)
 				lonScale := int32(10000000)
-				altScale := int32(100)     // Altitude uses 100, not 1000
+				altScale := int32(100) // Altitude uses 100, not 1000
 				speed2DScale := int32(1000)
 				speed3DScale := int32(100) // 3D speed uses 100
 
