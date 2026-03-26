@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 var (
@@ -72,6 +73,10 @@ func main() {
 
 	printResults(results)
 
+	// Track operation counts for exiftool instructions
+	renamedCount := 0
+	concatCount := 0
+
 	// Write sidecar files if requested
 	if *writeSidecar {
 		fmt.Println("\n" + "================================================================================")
@@ -85,7 +90,7 @@ func main() {
 		fmt.Println("\n" + "================================================================================")
 		fmt.Println("FILE RENAMING PLAN")
 		fmt.Println("================================================================================")
-		renameFilesBasedOnGPS(results, *outputDir, *dryRun)
+		renamedCount = renameFilesBasedOnGPS(results, *outputDir, *dryRun)
 	}
 
 	if *updateMetadata {
@@ -99,7 +104,12 @@ func main() {
 		fmt.Println("\n" + "================================================================================")
 		fmt.Println("CHAPTER CONCATENATION PLAN")
 		fmt.Println("================================================================================")
-		concatenateChapters(results, *concatOutputDir, *dryRun)
+		concatCount = concatenateChapters(results, *concatOutputDir, *dryRun)
+	}
+
+	// Show exiftool instructions if sidecars were created
+	if !*dryRun {
+		showExiftoolInstructions(renamedCount, concatCount, *outputDir, *concatOutputDir)
 	}
 }
 
@@ -146,6 +156,31 @@ func printResults(results []*ValidationResult) {
 
 		if result.GPSData.HasValidGPS && result.GPSData.SampleCount > 0 {
 			fmt.Printf("  GPS Samples: %d\n", result.GPSData.SampleCount)
+
+			// Show GPS coordinates if available
+			if len(result.GPSData.Coordinates) > 0 {
+				first := result.GPSData.Coordinates[0]
+				fmt.Printf("  GPS Coordinates (first): %.7f°, %.7f° (alt: %.2fm WGS84)\n",
+					first.Latitude, first.Longitude, first.Altitude)
+
+				// Show GPS fix type and precision
+				fixInfo := ""
+				if result.GPSData.GPSFix != nil {
+					fixInfo = fmt.Sprintf("%s fix", *result.GPSData.GPSFix)
+				}
+				if result.GPSData.GPSPrecision != nil {
+					if fixInfo != "" {
+						fixInfo += fmt.Sprintf(", DOP: %.2f", *result.GPSData.GPSPrecision)
+					} else {
+						fixInfo = fmt.Sprintf("DOP: %.2f", *result.GPSData.GPSPrecision)
+					}
+				}
+				if fixInfo != "" {
+					fmt.Printf("  GPS Quality: %s\n", fixInfo)
+				}
+
+				fmt.Printf("  GPS Track Points: %d\n", len(result.GPSData.Coordinates))
+			}
 
 			// Show absolute GPS time if available
 			if result.GPSData.FirstGPSTime != nil {
@@ -212,4 +247,39 @@ func writeSidecarFiles(results []*ValidationResult, dryRun bool) {
 	} else {
 		fmt.Printf("Complete: %d sidecar files written, %d skipped (no GPS data)\n", written, skipped)
 	}
+}
+
+func showExiftoolInstructions(renamedCount, concatCount int, outputDir, concatOutputDir string) {
+	if renamedCount == 0 && concatCount == 0 {
+		return // No sidecars were created
+	}
+
+	fmt.Println("\n" + strings.Repeat("=", 80))
+	fmt.Println("EMBEDDING SIDECAR METADATA WITH EXIFTOOL")
+	fmt.Println(strings.Repeat("=", 80))
+	fmt.Println()
+	fmt.Println("XMP sidecar files have been created with GPS coordinates and timezone information.")
+	fmt.Println("To embed this metadata into your MP4 files, use exiftool:")
+	fmt.Println()
+
+	if renamedCount > 0 {
+		fmt.Println("For renamed files:")
+		fmt.Printf("  exiftool -tagsFromFile %%f.xmp -all:all -ext MP4 %s/\n", outputDir)
+		fmt.Println()
+	}
+
+	if concatCount > 0 {
+		fmt.Println("For concatenated files:")
+		fmt.Printf("  exiftool -tagsFromFile %%f.xmp -all:all -ext MP4 %s/\n", concatOutputDir)
+		fmt.Println()
+	}
+
+	fmt.Println("Or for a single file:")
+	fmt.Println("  exiftool -tagsFromFile video.mp4.xmp -all:all video.mp4")
+	fmt.Println()
+	fmt.Println("To verify embedded GPS data:")
+	fmt.Println("  exiftool -GPS* -TimeZone -DateTimeOriginal -CreateDate video.mp4")
+	fmt.Println()
+	fmt.Println("Note: exiftool must be installed (https://exiftool.org/)")
+	fmt.Println(strings.Repeat("=", 80))
 }

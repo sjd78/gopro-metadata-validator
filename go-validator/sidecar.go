@@ -7,24 +7,21 @@ import (
 	"strings"
 )
 
-// WriteSidecarFile creates an XMP sidecar file with GPMF metadata
-func WriteSidecarFile(result *ValidationResult, dryRun bool) error {
-	if result.GPSData == nil || !result.GPSData.HasValidGPS {
+// WriteSidecarForFile creates XMP sidecar for any file path with GPS data
+func WriteSidecarForFile(filePath string, gpsData *GPSData, dryRun bool) error {
+	if gpsData == nil || !gpsData.HasValidGPS {
 		return nil // Skip if no GPS data
 	}
 
-	// Generate sidecar filename: video.mp4 -> video.mp4.xmp
-	sidecarPath := result.FilePath + ".xmp"
+	sidecarPath := filePath + ".xmp"
 
 	if dryRun {
-		fmt.Printf("📋 Would write sidecar: %s\n", sidecarPath)
+		fmt.Printf("📋 Would write sidecar: %s\n", filepath.Base(sidecarPath))
 		return nil
 	}
 
-	// Generate XMP content
-	xmpContent := generateXMP(result)
+	xmpContent := generateXMP(gpsData, filepath.Base(filePath))
 
-	// Write to file
 	if err := os.WriteFile(sidecarPath, []byte(xmpContent), 0644); err != nil {
 		return fmt.Errorf("failed to write sidecar: %w", err)
 	}
@@ -33,32 +30,52 @@ func WriteSidecarFile(result *ValidationResult, dryRun bool) error {
 	return nil
 }
 
-func generateXMP(result *ValidationResult) string {
-	gps := result.GPSData
+// WriteSidecarFile creates an XMP sidecar file with GPMF metadata
+// Maintained for backward compatibility - calls WriteSidecarForFile
+func WriteSidecarFile(result *ValidationResult, dryRun bool) error {
+	if result.GPSData == nil || !result.GPSData.HasValidGPS {
+		return nil
+	}
+	return WriteSidecarForFile(result.FilePath, result.GPSData, dryRun)
+}
 
+func generateXMP(gpsData *GPSData, _ string) string {
 	// Calculate GPS lock delay
 	var lockDelay string
-	if gps.FirstTimestampMs != nil {
-		lockDelay = fmt.Sprintf("%.1f", float64(*gps.FirstTimestampMs)/1000.0)
+	if gpsData.FirstTimestampMs != nil {
+		lockDelay = fmt.Sprintf("%.1f", float64(*gpsData.FirstTimestampMs)/1000.0)
 	}
 
 	// Get GPS timestamp
 	timestamp := ""
 	dateTime := ""
-	if gps.FirstGPSTime != nil {
-		timestamp = gps.FirstGPSTime.Format("2006-01-02T15:04:05Z")
-		dateTime = gps.FirstGPSTime.Format("2006-01-02T15:04:05Z")
+	dateTimeWithTZ := ""
+	timezone := ""
+
+	if gpsData.FirstGPSTime != nil {
+		timestamp = gpsData.FirstGPSTime.Format("2006-01-02T15:04:05Z")
+		dateTime = gpsData.FirstGPSTime.Format("2006-01-02T15:04:05Z")
 	}
 
 	// Get coordinates if available
 	var lat, lon, alt, speed string
-	hasCoords := len(gps.Coordinates) > 0
+	hasCoords := len(gpsData.Coordinates) > 0
 	if hasCoords {
-		first := gps.Coordinates[0]
-		lat = fmt.Sprintf("%.6f", first.Latitude)
-		lon = fmt.Sprintf("%.6f", first.Longitude)
-		alt = fmt.Sprintf("%.1f", first.Altitude)
+		first := gpsData.Coordinates[0]
+		lat = fmt.Sprintf("%.7f", first.Latitude)   // 7 decimal places for GPS precision
+		lon = fmt.Sprintf("%.7f", first.Longitude)
+		alt = fmt.Sprintf("%.2f", first.Altitude)   // WGS84 ellipsoid height in meters
 		speed = fmt.Sprintf("%.2f", first.Speed2D*3.6) // m/s to km/h
+
+		// Determine timezone from GPS coordinates
+		if gpsData.FirstGPSTime != nil {
+			tz := getTimezoneFromCoordinates(first.Latitude, first.Longitude)
+			timezone = tz.String()
+
+			// Format datetime with timezone offset
+			tzTime := gpsData.FirstGPSTime.In(tz)
+			dateTimeWithTZ = tzTime.Format("2006-01-02T15:04:05-07:00")
+		}
 	}
 
 	// Build XMP
@@ -76,6 +93,7 @@ func generateXMP(result *ValidationResult) string {
 		sb.WriteString(fmt.Sprintf(`      exif:GPSLatitude="%s"` + "\n", lat))
 		sb.WriteString(fmt.Sprintf(`      exif:GPSLongitude="%s"` + "\n", lon))
 		sb.WriteString(fmt.Sprintf(`      exif:GPSAltitude="%s"` + "\n", alt))
+		sb.WriteString(`      exif:GPSAltitudeRef="0"` + "\n") // 0 = above WGS84 ellipsoid
 		sb.WriteString(fmt.Sprintf(`      exif:GPSSpeed="%s"` + "\n", speed))
 		sb.WriteString(`      exif:GPSSpeedRef="K"` + "\n") // km/h
 	}
@@ -87,24 +105,32 @@ func generateXMP(result *ValidationResult) string {
 		sb.WriteString(fmt.Sprintf(`      xmp:CreateDate="%s"` + "\n", dateTime))
 	}
 
+	// Add timezone information if available
+	if timezone != "" {
+		sb.WriteString(fmt.Sprintf(`      exifEX:TimeZone="%s"` + "\n", timezone))
+		if dateTimeWithTZ != "" {
+			sb.WriteString(fmt.Sprintf(`      exifEX:DateTimeOriginalTZ="%s"` + "\n", dateTimeWithTZ))
+		}
+	}
+
 	// Add GPS lock delay (custom field)
 	if lockDelay != "" {
 		sb.WriteString(fmt.Sprintf(`      exifEX:GPSLockDelay="%s"` + "\n", lockDelay))
 	}
 
 	// Add GPS fix type if available
-	if gps.GPSFix != nil {
-		sb.WriteString(fmt.Sprintf(`      aux:GPSFix="%s"` + "\n", *gps.GPSFix))
+	if gpsData.GPSFix != nil {
+		sb.WriteString(fmt.Sprintf(`      aux:GPSFix="%s"` + "\n", *gpsData.GPSFix))
 	}
 
 	// Add GPS precision if available
-	if gps.GPSPrecision != nil {
-		sb.WriteString(fmt.Sprintf(`      aux:GPSPrecisionDOP="%.2f"` + "\n", *gps.GPSPrecision))
+	if gpsData.GPSPrecision != nil {
+		sb.WriteString(fmt.Sprintf(`      aux:GPSPrecisionDOP="%.2f"` + "\n", *gpsData.GPSPrecision))
 	}
 
 	// Add track point count if we have coordinates
 	if hasCoords {
-		sb.WriteString(fmt.Sprintf(`      aux:GPSTrackPoints="%d"` + "\n", len(gps.Coordinates)))
+		sb.WriteString(fmt.Sprintf(`      aux:GPSTrackPoints="%d"` + "\n", len(gpsData.Coordinates)))
 	}
 
 	// Add processing info

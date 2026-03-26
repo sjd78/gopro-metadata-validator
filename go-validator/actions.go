@@ -9,17 +9,20 @@ import (
 	"time"
 )
 
-func renameFilesBasedOnGPS(results []*ValidationResult, outputDir string, dryRun bool) {
+func renameFilesBasedOnGPS(results []*ValidationResult, outputDir string, dryRun bool) int {
 	if !dryRun {
 		// Create output directory
 		if err := os.MkdirAll(outputDir, 0755); err != nil {
 			fmt.Printf("Error creating output directory: %v\n", err)
-			return
+			return 0
 		}
 	}
 
 	renamed := 0
 	skipped := 0
+
+	// Track renamed file paths for sidecar generation
+	renamedFiles := make(map[string]*GPSData)
 
 	for _, result := range results {
 		if result.GPSData.FirstGPSTime == nil {
@@ -50,6 +53,11 @@ func renameFilesBasedOnGPS(results []*ValidationResult, outputDir string, dryRun
 			fmt.Printf("   From: %s\n", result.FilePath)
 			fmt.Printf("   To:   %s\n\n", newPath)
 			renamed++
+
+			// Track for sidecar dry-run
+			if result.GPSData != nil && result.GPSData.HasValidGPS {
+				renamedFiles[newPath] = result.GPSData
+			}
 		} else {
 			// Create date subdirectory
 			if err := os.MkdirAll(dateDir, 0755); err != nil {
@@ -67,6 +75,11 @@ func renameFilesBasedOnGPS(results []*ValidationResult, outputDir string, dryRun
 
 			fmt.Printf("✓ Renamed: %s -> %s\n", filepath.Base(result.FilePath), newFilename)
 			renamed++
+
+			// Track renamed path for sidecar creation
+			if result.GPSData != nil && result.GPSData.HasValidGPS {
+				renamedFiles[newPath] = result.GPSData
+			}
 		}
 	}
 
@@ -77,6 +90,28 @@ func renameFilesBasedOnGPS(results []*ValidationResult, outputDir string, dryRun
 	} else {
 		fmt.Printf("Complete: %d files renamed to %s, %d skipped\n", renamed, outputDir, skipped)
 	}
+
+	// Create sidecars for renamed files
+	if len(renamedFiles) > 0 {
+		fmt.Println("\nCreating XMP sidecars for renamed files...")
+		sidecarCount := 0
+
+		for newPath, gpsData := range renamedFiles {
+			if err := WriteSidecarForFile(newPath, gpsData, dryRun); err != nil {
+				fmt.Printf("⚠️  Error creating sidecar for %s: %v\n", filepath.Base(newPath), err)
+			} else {
+				sidecarCount++
+			}
+		}
+
+		if dryRun {
+			fmt.Printf("%d sidecar files would be created\n", sidecarCount)
+		} else {
+			fmt.Printf("%d sidecar files created\n", sidecarCount)
+		}
+	}
+
+	return renamed
 }
 
 func updateFileMetadata(results []*ValidationResult, dryRun bool) {

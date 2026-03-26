@@ -68,24 +68,27 @@ func detectChapterSeries(results []*ValidationResult) map[string]*ChapterSeries 
 	return filtered
 }
 
-func concatenateChapters(results []*ValidationResult, outputDir string, dryRun bool) {
+func concatenateChapters(results []*ValidationResult, outputDir string, dryRun bool) int {
 	series := detectChapterSeries(results)
 
 	if len(series) == 0 {
 		fmt.Println("No multi-chapter recordings found.")
 		fmt.Println("(Chapter files are named GH01xxxx.MP4, GH02xxxx.MP4, etc. with the same base number)")
-		return
+		return 0
 	}
 
 	if !dryRun {
 		if err := os.MkdirAll(outputDir, 0755); err != nil {
 			fmt.Printf("Error creating output directory: %v\n", err)
-			return
+			return 0
 		}
 	}
 
 	concatenated := 0
 	skipped := 0
+
+	// Track concatenated file paths for sidecar generation
+	concatenatedFiles := make(map[string]*GPSData)
 
 	// Sort by base number for consistent output
 	var baseNumbers []string
@@ -96,6 +99,15 @@ func concatenateChapters(results []*ValidationResult, outputDir string, dryRun b
 
 	for _, baseNum := range baseNumbers {
 		s := series[baseNum]
+
+		// Get GPS data from first chapter
+		var gpsData *GPSData
+		for _, result := range results {
+			if result.FilePath == s.Files[0] {
+				gpsData = result.GPSData
+				break
+			}
+		}
 
 		// Determine output filename
 		var outputName string
@@ -115,8 +127,14 @@ func concatenateChapters(results []*ValidationResult, outputDir string, dryRun b
 			for i, file := range s.Files {
 				fmt.Printf("   [%d] %s\n", i+1, filepath.Base(file))
 			}
-			fmt.Printf("   → Output: %s\n\n", outputPath)
+			fmt.Printf("   → Output: %s\n", outputPath)
+			fmt.Printf("   → Sidecar: %s.xmp\n\n", outputName)
 			concatenated++
+
+			// Track for sidecar dry-run
+			if gpsData != nil && gpsData.HasValidGPS {
+				concatenatedFiles[outputPath] = gpsData
+			}
 		} else {
 			fmt.Printf("🔗 Concatenating %d chapters for recording %s...\n", len(s.Files), s.BaseNumber)
 
@@ -151,12 +169,24 @@ func concatenateChapters(results []*ValidationResult, outputDir string, dryRun b
 
 			os.Remove(concatListFile)
 
+			// Verify output file was created
+			if _, err := os.Stat(outputPath); err != nil {
+				fmt.Printf("✗ Error: Output file not created: %s\n", outputPath)
+				skipped++
+				continue
+			}
+
 			// Get output file size
 			info, _ := os.Stat(outputPath)
 			sizeGB := float64(info.Size()) / (1024 * 1024 * 1024)
 
 			fmt.Printf("✓ Created: %s (%.1f GB)\n\n", outputName, sizeGB)
 			concatenated++
+
+			// Track concatenated path for sidecar creation
+			if gpsData != nil && gpsData.HasValidGPS {
+				concatenatedFiles[outputPath] = gpsData
+			}
 		}
 	}
 
@@ -167,6 +197,28 @@ func concatenateChapters(results []*ValidationResult, outputDir string, dryRun b
 	} else {
 		fmt.Printf("Complete: %d recordings concatenated to %s, %d skipped\n", concatenated, outputDir, skipped)
 	}
+
+	// Create sidecars for concatenated files
+	if len(concatenatedFiles) > 0 {
+		fmt.Println("\nCreating XMP sidecars for concatenated files...")
+		sidecarCount := 0
+
+		for outputPath, gpsData := range concatenatedFiles {
+			if err := WriteSidecarForFile(outputPath, gpsData, dryRun); err != nil {
+				fmt.Printf("⚠️  Warning: Could not create sidecar: %v\n", err)
+			} else {
+				sidecarCount++
+			}
+		}
+
+		if dryRun {
+			fmt.Printf("%d sidecar files would be created\n", sidecarCount)
+		} else {
+			fmt.Printf("%d sidecar files created\n", sidecarCount)
+		}
+	}
+
+	return concatenated
 }
 
 func createConcatList(files []string, outputPath string) error {
