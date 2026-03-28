@@ -1,0 +1,32 @@
+# Lefthook Git hooks manager
+# https://github.com/evilmartians/lefthook
+
+pre-commit:
+  parallel: true
+  commands:
+    format:
+      glob: "go-validator/*.go"
+      run: |
+        echo "🔧 Formatting staged Go files..."
+        gofmt -w {staged_files}
+        git add {staged_files}
+      stage_fixed: true
+
+    vet:
+      glob: "go-validator/*.go"
+      run: |
+        echo "🔍 Running go vet..."
+        cd go-validator && go vet ./...
+      fail_text: "go vet found issues - commit aborted"
+
+    # Optional: add golangci-lint if installed
+    # lint:
+    #   glob: "go-validator/*.go"
+    #   run: |
+    #     echo "🧹 Running golangci-lint..."
+    #     cd go-validator && golangci-lint run {staged_files}
+
+  # Skip hooks with LEFTHOOK=0 or --no-verify flag
+  skip:
+    - merge
+    - rebase
