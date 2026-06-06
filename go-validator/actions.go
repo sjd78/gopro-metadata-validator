@@ -25,6 +25,12 @@ func renameFilesBasedOnGPS(results []*ValidationResult, outputDir string, dryRun
 	// Track renamed file paths for sidecar generation
 	renamedFiles := make(map[string]*GPSData)
 
+	// Track generated paths for dry-run uniqueness
+	var existingPaths map[string]bool
+	if dryRun {
+		existingPaths = make(map[string]bool)
+	}
+
 	for _, result := range results {
 		if result.GPSData.FirstGPSTime == nil {
 			fmt.Printf("⊘ %s - No GPS timestamp, skipping\n", filepath.Base(result.FilePath))
@@ -47,7 +53,7 @@ func renameFilesBasedOnGPS(results []*ValidationResult, outputDir string, dryRun
 		newPath := filepath.Join(dateDir, newFilename)
 
 		// Ensure unique filename to avoid overwriting existing files
-		newPath = GenerateUniqueFilename(newPath)
+		newPath = GenerateUniqueFilename(newPath, existingPaths)
 
 		if dryRun {
 			fmt.Printf("📋 Would rename:\n")
@@ -241,8 +247,34 @@ func calculateRecordingStartTime(gpsData *GPSData) time.Time {
 
 // GenerateUniqueFilename ensures the output path doesn't exist by appending (1), (2), etc.
 // Pattern: "file.mp4" → "file (1).mp4" → "file (2).mp4"
-func GenerateUniqueFilename(path string) string {
-	// If file doesn't exist, return original path
+// In dry-run mode, pass existingPaths map to track already-generated names in memory.
+func GenerateUniqueFilename(path string, existingPaths map[string]bool) string {
+	// Check in-memory tracking first (for dry-run mode)
+	if existingPaths != nil {
+		if !existingPaths[path] {
+			existingPaths[path] = true
+			return path
+		}
+
+		// Path already generated, need to add suffix
+		dir := filepath.Dir(path)
+		ext := filepath.Ext(path)
+		base := filepath.Base(path)
+		nameWithoutExt := strings.TrimSuffix(base, ext)
+
+		// Try (1), (2), (3), etc. until we find a free name
+		for i := 1; ; i++ {
+			newName := fmt.Sprintf("%s (%d)%s", nameWithoutExt, i, ext)
+			newPath := filepath.Join(dir, newName)
+
+			if !existingPaths[newPath] {
+				existingPaths[newPath] = true
+				return newPath
+			}
+		}
+	}
+
+	// Normal mode: check actual filesystem
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		return path
 	}

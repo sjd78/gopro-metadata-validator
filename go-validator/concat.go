@@ -91,6 +91,12 @@ func concatenateChapters(results []*ValidationResult, outputDir string, dryRun b
 	// Track concatenated file paths for sidecar generation
 	concatenatedFiles := make(map[string]*GPSData)
 
+	// Track generated paths for dry-run uniqueness
+	var existingPaths map[string]bool
+	if dryRun {
+		existingPaths = make(map[string]bool)
+	}
+
 	// Sort by base number for consistent output
 	var baseNumbers []string
 	for baseNum := range series {
@@ -120,7 +126,7 @@ func concatenateChapters(results []*ValidationResult, outputDir string, dryRun b
 		outputPath := filepath.Join(outputDir, outputName)
 
 		// Ensure unique filename to avoid overwriting existing files
-		outputPath = GenerateUniqueFilename(outputPath)
+		outputPath = GenerateUniqueFilename(outputPath, existingPaths)
 		outputName = filepath.Base(outputPath)
 
 		if dryRun {
