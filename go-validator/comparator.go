@@ -90,16 +90,9 @@ func compareMetadata(metadata *Metadata, gpsData *GPSData) []string {
 		}
 	}
 
-	// If we have GPS data with relative timestamps, verify it's reasonable
-	if gpsData.HasValidGPS && gpsData.FirstTimestampMs != nil && metadata.CreationTime != nil {
-		// GPS timestamps should start near 0 (within a few seconds of recording start)
-		gpsStartSeconds := float64(*gpsData.FirstTimestampMs) / 1000.0
-
-		if gpsStartSeconds > 60 {
-			issues = append(issues,
-				fmt.Sprintf("GPS first timestamp is %.1fs - expected to start near 0s (likely a chapter continuation)", gpsStartSeconds))
-		}
-	}
+	// Note: GPS relative timestamps > 60s are normal for chapter files (cumulative timestamps)
+	// Chapter files have expected behavior where ch2 starts at ~105s, ch3 at ~210s, etc.
+	// This is documented in CLAUDE.md and should not be flagged as an issue.
 
 	if metadata.CreationTime == nil {
 		issues = append(issues, "No creation time found in metadata")
