@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 // WriteSidecarForFile creates XMP sidecar for any file path with GPS data
@@ -46,15 +47,26 @@ func generateXMP(gpsData *GPSData, _ string) string {
 		lockDelay = fmt.Sprintf("%.1f", float64(*gpsData.FirstTimestampMs)/1000.0)
 	}
 
-	// Get GPS timestamp
+	// Calculate actual recording start time (adjust for GPS lock delay)
+	var actualStartTime *time.Time
+	if gpsData.FirstGPSTime != nil {
+		adjusted := *gpsData.FirstGPSTime
+		if gpsData.FirstTimestampMs != nil {
+			offset := time.Duration(*gpsData.FirstTimestampMs) * time.Millisecond
+			adjusted = adjusted.Add(-offset)
+		}
+		actualStartTime = &adjusted
+	}
+
+	// Get GPS timestamp (use adjusted recording start time)
 	timestamp := ""
 	dateTime := ""
 	dateTimeWithTZ := ""
 	timezone := ""
 
-	if gpsData.FirstGPSTime != nil {
-		timestamp = gpsData.FirstGPSTime.Format("2006-01-02T15:04:05Z")
-		dateTime = gpsData.FirstGPSTime.Format("2006-01-02T15:04:05Z")
+	if actualStartTime != nil {
+		timestamp = actualStartTime.Format("2006-01-02T15:04:05Z")
+		dateTime = actualStartTime.Format("2006-01-02T15:04:05Z")
 	}
 
 	// Get coordinates if available
@@ -68,12 +80,12 @@ func generateXMP(gpsData *GPSData, _ string) string {
 		speed = fmt.Sprintf("%.2f", first.Speed2D*3.6) // m/s to km/h
 
 		// Determine timezone from GPS coordinates
-		if gpsData.FirstGPSTime != nil {
+		if actualStartTime != nil {
 			tz := getTimezoneFromCoordinates(first.Latitude, first.Longitude)
 			timezone = tz.String()
 
-			// Format datetime with timezone offset
-			tzTime := gpsData.FirstGPSTime.In(tz)
+			// Format datetime with timezone offset (use adjusted recording start)
+			tzTime := actualStartTime.In(tz)
 			dateTimeWithTZ = tzTime.Format("2006-01-02T15:04:05-07:00")
 		}
 	}
