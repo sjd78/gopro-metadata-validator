@@ -63,8 +63,9 @@ MP4 File → ffprobe (metadata) → Metadata struct
 **`gpmf.go`** - GPMF stream extraction and parsing (KLV structure)
 **`metadata.go`** - MP4 metadata extraction via ffprobe
 **`comparator.go`** - Validation logic, compares GPS vs file metadata
-**`actions.go`** - File operations (rename, metadata updates)
+**`actions.go`** - File operations (rename, metadata updates, streaming file copy)
 **`concat.go`** - Chapter detection and concatenation
+**`sidecar.go`** - XMP sidecar file generation with GPS metadata
 **`validator.go`** - Main validation orchestration
 
 ### GPMF Parsing Strategy
@@ -85,7 +86,7 @@ GoPro splits long recordings into chapters:
 - `GH026978.MP4` - Chapter 2 (same base number 6978)
 - `GH036978.MP4` - Chapter 3
 
-Regex pattern: `GH(\d)(\d)(\d{4})\.MP4`
+Regex pattern: `(?i)GH(\d)(\d)(\d{4})\.MP4` (case-insensitive, matches both .MP4 and .mp4)
 
 Chapter files have cumulative GPS relative timestamps:
 - Chapter 1: ~0s start
@@ -120,9 +121,12 @@ Always trust GPS over file metadata when they conflict.
 
 ### Dry-Run First
 All operations that modify files support `--dry-run`. Always preview before applying:
-- `--rename` copies files (safe, originals untouched)
+- `--rename` copies files using streaming I/O (safe, originals untouched, memory-efficient)
 - `--concat` creates new files (safe)
 - `--update-metadata` modifies files IN PLACE (destructive, recommend dry-run + backup)
+- `--write-sidecar` creates XMP sidecar files with GPS metadata
+
+Note: In dry-run mode, unique filename generation tracks paths in memory to correctly show (1), (2) suffixes even when output files don't exist yet.
 
 ### Output Directory Behavior
 - `--output` and `--concat-output` are relative to CWD by default
