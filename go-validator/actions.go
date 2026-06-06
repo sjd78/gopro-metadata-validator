@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -198,12 +199,24 @@ func updateFileMetadata(results []*ValidationResult, dryRun bool) {
 }
 
 func copyFile(src, dst string) error {
-	input, err := os.ReadFile(src)
+	srcFile, err := os.Open(src)
 	if err != nil {
 		return err
 	}
+	defer srcFile.Close()
 
-	return os.WriteFile(dst, input, 0644)
+	dstFile, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer dstFile.Close()
+
+	if err := dstFile.Chmod(0644); err != nil {
+		return err
+	}
+
+	_, err = io.Copy(dstFile, srcFile)
+	return err
 }
 
 // calculateRecordingStartTime adjusts the GPS time for GPS lock delay
