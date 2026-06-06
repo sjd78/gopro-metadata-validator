@@ -285,7 +285,7 @@ func parseGPMFData(data []byte) (*GPSData, error) {
 				if nestedData.FirstGPSTime != nil {
 					gpsTimes = append(gpsTimes, *nestedData.FirstGPSTime)
 				}
-				if nestedData.LastGPSTime != nil && nestedData.LastGPSTime != nestedData.FirstGPSTime {
+				if nestedData.LastGPSTime != nil && (nestedData.FirstGPSTime == nil || !nestedData.LastGPSTime.Equal(*nestedData.FirstGPSTime)) {
 					gpsTimes = append(gpsTimes, *nestedData.LastGPSTime)
 				}
 				result.Coordinates = append(result.Coordinates, nestedData.Coordinates...)
@@ -324,7 +324,7 @@ func extractTimestampsFromGPSData(data *GPSData) []int64 {
 	if data.FirstTimestampMs != nil {
 		timestamps = append(timestamps, *data.FirstTimestampMs)
 	}
-	if data.LastTimestampMs != nil && data.LastTimestampMs != data.FirstTimestampMs {
+	if data.LastTimestampMs != nil && (data.FirstTimestampMs == nil || *data.LastTimestampMs != *data.FirstTimestampMs) {
 		timestamps = append(timestamps, *data.LastTimestampMs)
 	}
 	return timestamps
@@ -347,8 +347,11 @@ func parseGPSUTime(gpsTimeStr string) (time.Time, error) {
 
 	// Milliseconds if present
 	millis := "000"
-	if len(gpsTimeStr) > 13 && gpsTimeStr[12] == '.' {
+	if len(gpsTimeStr) >= 16 && gpsTimeStr[12] == '.' {
 		millis = gpsTimeStr[13:16]
+	} else if len(gpsTimeStr) > 13 && gpsTimeStr[12] == '.' {
+		// Handle shorter millisecond strings (pad with zeros)
+		millis = (gpsTimeStr[13:] + "000")[:3]
 	}
 
 	// Parse as UTC time
