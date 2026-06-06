@@ -23,7 +23,8 @@ func detectChapterSeries(results []*ValidationResult) map[string]*ChapterSeries 
 
 	// Regex to extract chapter number and base number from GoPro filename
 	// GH016978.MP4 -> chapter=01, base=6978
-	pattern := regexp.MustCompile(`GH(\d)(\d)(\d{4})\.MP4`)
+	// Accept both .MP4 and .mp4 extensions (case-insensitive)
+	pattern := regexp.MustCompile(`(?i)GH(\d)(\d)(\d{4})\.MP4`)
 
 	for _, result := range results {
 		filename := filepath.Base(result.FilePath)
