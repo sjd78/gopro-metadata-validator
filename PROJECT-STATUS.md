@@ -99,15 +99,20 @@ All features tested on sample files:
 ## Dependencies
 
 ### Runtime (Required)
-- `ffmpeg` - Video processing
-- `ffprobe` - Metadata extraction
+- `ffmpeg` - Required for `--update-metadata` (remux) and `--concat` operations
+- `ffprobe` - Required for MP4 metadata extraction (`creation_time`, timecode)
+
+### Not Required for GPMF Extraction
+- GPMF/GPS telemetry is now read via pure Go (`github.com/abema/go-mp4`)
+- No subprocess spawning, no temp files, no ffmpeg needed for validation-only runs
 
 ### Build (Development)
-- Go 1.19+ - Compiler
+- Go 1.21+ - Compiler
+- `github.com/abema/go-mp4` v1.7.1 - MP4 atom parsing (compiled in, no runtime install)
 
-### None Required for Binary
-- Compiled binary has no runtime Go dependencies
-- Just needs ffmpeg/ffprobe installed
+### None Required for Binary (validation only)
+- Compiled binary has no runtime Go dependencies for validation
+- ffmpeg/ffprobe still needed for `--update-metadata` and `--concat`
 
 ## Platform Support
 

@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Replaced ffmpeg-based GPMF extraction with pure Go** using `github.com/abema/go-mp4`
+  - Eliminates `ffprobe` + `ffmpeg` subprocess spawning for GPMF extraction
+  - Eliminates temporary file creation in `os.TempDir()`
+  - Reads only the GPMF sample chunks directly from the MP4 via `io.ReadSeeker`
+  - Handles `co64` (64-bit chunk offsets) for future-proofing with very large files
+  - ffmpeg is still required for `--update-metadata` and `--concat` operations
+
+### Fixed
+- **STMP timestamp bug**: `STMP` is a `uint64` microsecond value (type `'J'`); was
+  previously read as `uint32`, silently truncating the high 4 bytes and producing
+  wrong relative timestamps on cameras that emit STMP instead of TSMP
+- **Per-stream SCAL scoping**: SCAL values are now reset per STRM container so scale
+  factors from one sensor stream (e.g. ACCL) can no longer bleed into another (GPS5)
+- **Single-scalar SCAL**: a SCAL with one value is now correctly applied to all 5 GPS5
+  fields rather than falling back to hardcoded defaults
+
+## [Unreleased - previous]
+
 ### Added
 - Version flag (`--version`) to display tool version
 - Automated release builds for multiple platforms (Linux, macOS, Windows on amd64/arm64)

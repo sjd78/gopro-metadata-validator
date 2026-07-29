@@ -34,7 +34,7 @@ This project uses **Go** for the production implementation. A TypeScript version
 | **Update metadata** | ✅ Fix creation_time |
 | **Concat chapters** | ✅ Join multi-part recordings |
 | **Cross-platform** | ✅ Windows, Linux, macOS |
-| **Dependencies** | Only Go compiler + ffmpeg |
+| **Dependencies** | Go compiler + ffmpeg (for fix/concat only) |
 
 **All development happens in `go-validator/`**
 

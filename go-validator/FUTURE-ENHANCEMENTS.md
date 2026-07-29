@@ -69,21 +69,15 @@ This document catalogs potential improvements and feature additions for the GoPr
 
 ## Long-Term Enhancements
 
-### 6. Alternative MP4 Parsing Library
+### 6. Alternative MP4 Parsing Library ✅ DONE
 
-**Replace ffmpeg/ffprobe with Native Go MP4 Parser**
-- Library: `github.com/abema/go-mp4`
-- Benefits:
-  - No external dependencies (ffmpeg not required)
-  - More robust error handling for corrupted files
-  - Streaming support for very large files via ReadSeeker
-  - Direct MP4 atom navigation
-- Trade-offs:
-  - More complex implementation
-  - Current ffmpeg approach works well
-  - Binary size increase
-- **Complexity:** High
-- **Value:** Medium (better for distribution, no ffmpeg dependency)
+**~~Replace ffmpeg/ffprobe with Native Go MP4 Parser~~**
+- **Completed 2026-07-29** using `github.com/abema/go-mp4` v1.7.1
+- GPMF stream extraction is now pure Go via `io.ReadSeeker` + MP4 atom navigation
+- No subprocess spawning, no temp files for validation/extraction
+- Handles `co64` (64-bit chunk offsets) for large files
+- ffmpeg is still used for `--update-metadata` (remux) and `--concat`
+- Also fixed: STMP uint64 bug, per-stream SCAL scoping, single-scalar SCAL
 
 ### 7. GUI Application
 
