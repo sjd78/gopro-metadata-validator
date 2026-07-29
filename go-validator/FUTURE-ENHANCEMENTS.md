@@ -58,7 +58,24 @@ This document catalogs potential improvements and feature additions for the GoPr
 - **Complexity:** Medium-High
 - **Value:** Medium (better organization/searchability)
 
-### 5. Video Frame Synchronization
+### 5. Custom XMP Namespace for GoPro Metadata
+
+**Add `gopro:` namespace to XMP sidecar output**
+- Define a custom XML namespace (e.g., `xmlns:gopro="http://gopro.com/xmp/1.0/"`) for metadata that has no standard XMP home
+- Initial fields to populate:
+  - `gopro:ChapterNumber` — chapter index derived from filename or STMP ordering
+  - `gopro:SessionID` — recording session grouping (from MUID in `udta/GPMF` if available)
+  - `gopro:CaptureID` — per-file identifier (from CPID in `udta/GPMF` if available)
+  - `gopro:CameraModel` — from GPMF MINF/CINF or ffprobe metadata
+  - `gopro:FirmwareVersion` — from GPMF FMWR
+  - `gopro:CameraSerialNumber` — from GPMF CASN
+- Extensible: new tags can be added without conflicting with standard XMP namespaces
+- Requires reading `moov/udta/GPMF` atom (global metadata, not the per-sample stream)
+- **Note:** MUID, CPID, and CPIN are listed in the official GPMF spec but are undocumented beyond their names — format/semantics must be determined empirically from real files
+- **Complexity:** Medium
+- **Value:** High (preserves chapter/session identity through renames, enables custom tooling)
+
+### 6. Video Frame Synchronization
 
 **GPS Track Alignment with Video Timeline**
 - Match GPS coordinates to specific video frames
@@ -69,7 +86,7 @@ This document catalogs potential improvements and feature additions for the GoPr
 
 ## Long-Term Enhancements
 
-### 6. Alternative MP4 Parsing Library ✅ DONE
+### 7. Alternative MP4 Parsing Library ✅ DONE
 
 **~~Replace ffmpeg/ffprobe with Native Go MP4 Parser~~**
 - **Completed 2026-07-29** using `github.com/abema/go-mp4` v1.7.1
@@ -79,7 +96,7 @@ This document catalogs potential improvements and feature additions for the GoPr
 - ffmpeg is still used for `--update-metadata` (remux) and `--concat`
 - Also fixed: STMP uint64 bug, per-stream SCAL scoping, single-scalar SCAL
 
-### 7. GUI Application
+### 8. GUI Application
 
 **Desktop Application with Visual Interface**
 - Technologies: Fyne, Qt, or web-based (Wails)
@@ -91,7 +108,7 @@ This document catalogs potential improvements and feature additions for the GoPr
 - **Complexity:** Very High
 - **Value:** High (accessibility for non-technical users)
 
-### 8. Cloud/Web Service
+### 9. Cloud/Web Service
 
 **Web-Based GPMF Processing Service**
 - Upload GoPro videos for processing
@@ -103,7 +120,7 @@ This document catalogs potential improvements and feature additions for the GoPr
 - **Complexity:** Very High
 - **Value:** Medium (convenience vs. privacy trade-off)
 
-### 9. Advanced Analytics
+### 10. Advanced Analytics
 
 **Video Quality Metrics**
 - Analyze GPMF data for:
@@ -115,7 +132,7 @@ This document catalogs potential improvements and feature additions for the GoPr
 - **Complexity:** High
 - **Value:** Low-Medium (specialized use case)
 
-### 10. Integration with Video Editors
+### 11. Integration with Video Editors
 
 **Plugin/Extension Development**
 - DaVinci Resolve plugin
@@ -233,20 +250,22 @@ This document catalogs potential improvements and feature additions for the GoPr
 - Dependencies on external systems
 - Alignment with core mission (GPS timestamp correction)
 
-**Immediate focus (current plan):**
+**Completed:**
 - GPS5 coordinate parsing ✓
-- Timezone determination from GPS
-- XMP sidecar generation for renamed/concatenated files
-- exiftool embedding workflow
+- Timezone determination from GPS ✓
+- XMP sidecar generation for renamed/concatenated files ✓
+- Pure Go GPMF extraction (go-mp4) ✓
+- exiftool embedding workflow ✓
 
-**Next priorities after current plan:**
+**Next priorities:**
+- Custom XMP namespace (`gopro:`) for chapter/session/camera metadata
+- Reading `moov/udta/GPMF` global metadata (MUID, CPID, CPIN, CASN, FMWR)
 - Full GPS track export (GPX generation)
 - Enhanced timezone database
-- Camera settings extraction (SHUT/WBAL/ISOE)
 - Testing infrastructure
 
 ---
 
-**Last Updated:** 2026-03-26
+**Last Updated:** 2026-07-29
 **Document Purpose:** Track potential improvements for future development sprints
 **Status:** Living document - add items as they are identified

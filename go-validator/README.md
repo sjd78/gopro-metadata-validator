@@ -4,12 +4,13 @@ A Go implementation that can handle files of any size, including >2GB files that
 
 ## Features
 
-- ✅ **Handles large files (>2GB)** - streams GPMF data via ffmpeg
-- ✅ **Custom GPMF parser** - doesn't load entire file into memory
-- ✅ **Fast execution** - compiled binary with minimal dependencies
+- ✅ **Handles large files (>2GB)** - reads only GPMF sample chunks via `io.ReadSeeker`
+- ✅ **Pure Go GPMF extraction** - no ffmpeg needed for validation (uses `github.com/abema/go-mp4`)
+- ✅ **Fast execution** - compiled binary, no subprocess spawning for validation
 - ✅ **Extracts GPS absolute timestamps** - validates against file metadata
 - ✅ **Rename/move files** - organize by GPS timestamp
 - ✅ **Update metadata** - fix incorrect creation times
+- ✅ **XMP sidecar generation** - GPS coordinates, timestamps, timezone, and quality data
 
 ## Building
 
@@ -104,37 +105,34 @@ exiftool -tagsFromFile %f.xmp -all:all -ext MP4 /path/to/videos/
 - Standard format (compatible with Lightroom, Bridge, etc.)
 - Flexible (choose which metadata to embed with exiftool)
 
-**Note:** GPS coordinates (lat/lon/altitude) will be added in a future update when GPS5 binary parsing is implemented.
-```
+GPS coordinates (lat/lon/altitude), speed, GPS fix type, precision/DOP, timezone, and GPS lock delay are all included in the sidecar output.
 
 ## How It Works
 
-1. Uses `ffprobe` to find the GPMF stream index
-2. Uses `ffmpeg` to extract just the GPMF binary stream (not the entire file)
-3. Parses GPMF KLV (Key-Length-Value) structure recursively
-4. Extracts TSMP timestamps from GPS data streams
-5. Compares with file metadata (creation_time, timecode)
+1. Opens the MP4 file and navigates to the "GoPro MET" handler track using `github.com/abema/go-mp4`
+2. Reads the sample table (stco/co64, stsz, stsc) to locate GPMF data chunks
+3. Reads each GPMF sample directly from the file via `io.ReadSeeker` — no temp files, no subprocess
+4. Parses GPMF KLV (Key-Length-Value) structure recursively (DEVC → STRM → data keys)
+5. Extracts GPS timestamps (GPSU, STMP), coordinates (GPS5), and quality data (GPSF, GPSP)
+6. Uses `ffprobe` separately for MP4 container metadata (creation_time, timecode)
+7. Compares GPS ground truth against file metadata to detect errors
 
-## GPMF Structure
+## GPMF Keys Extracted
 
 ```
-DEVC (Device)
-  └─ STRM (Stream)
-      ├─ TSMP (Timestamp in milliseconds)
-      ├─ GPS5 (GPS data: lat, lon, alt, speed2D, speed3D)
-      ├─ ACCL (Accelerometer)
-      └─ GYRO (Gyroscope)
+DEVC (Device container)
+  └─ STRM (Stream container — each has its own SCAL scope)
+      ├─ GPSU/GPSUU  Absolute UTC datetime (GPS ground truth)
+      ├─ STMP        Relative µs timestamp (GPS lock delay calculation)
+      ├─ TSMP        Sample counter (fallback ordering)
+      ├─ GPS5        Lat, lon, alt, speed2D, speed3D
+      ├─ SCAL        Scale factors (required to decode GPS5)
+      ├─ GPSF        GPS fix type (none/2D/3D)
+      └─ GPSP        Precision / DOP
 ```
 
-## Key Differences from TypeScript Version
-
-| Feature | TypeScript | Go |
-|---------|-----------|-----|
-| Max file size | 2GB | Unlimited |
-| Dependencies | Node.js + 3 npm packages | Go compiler only |
-| Memory usage | Loads entire file | Streams GPMF only |
-| Execution speed | ~5s | ~2s |
-| GPMF parsing | Library-based | Custom parser |
+Additional GPMF keys (ACCL, GYRO, CORI, ISOE, SHUT, WBAL, etc.) are available
+in the stream but not currently extracted. See `gpmf.go` for the full reference list.
 
 ## Chapter Files
 
@@ -147,9 +145,12 @@ The validator correctly identifies chapter files by detecting GPS timestamps tha
 
 ## Dependencies
 
-Runtime requirements:
-- `ffmpeg` - for GPMF stream extraction
-- `ffprobe` - for metadata extraction
+**Validation only (no external tools needed):**
+- GPMF extraction uses pure Go (`github.com/abema/go-mp4`) — compiled into the binary
+- `ffprobe` — for MP4 container metadata (creation_time, timecode)
+
+**For file operations:**
+- `ffmpeg` — required only for `--update-metadata` (remux) and `--concat` (chapter joining)
 
 ## Performance
 

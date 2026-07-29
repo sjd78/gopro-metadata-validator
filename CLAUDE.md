@@ -52,7 +52,7 @@ go vet ./...
 ### Data Flow
 ```
 MP4 File → ffprobe (metadata) → Metadata struct
-         → ffmpeg (GPMF extract) → GPMF parser → GPS timestamps
+         → go-mp4 (GPMF track) → KLV parser → GPS timestamps
          → Comparator → ValidationResult
          → Actions (rename/update/concat)
 ```
@@ -70,12 +70,16 @@ MP4 File → ffprobe (metadata) → Metadata struct
 
 ### GPMF Parsing Strategy
 
-GPMF data is extracted from MP4 files using ffmpeg (doesn't load entire file):
-1. `ffprobe` finds the GPMF stream index (usually stream 3, codec tag 'gpmd')
-2. `ffmpeg` extracts just that stream to temp file
-3. Custom KLV parser reads Key-Length-Value structure
-4. Extract GPSU/GPSUU entries for absolute UTC timestamps
-5. Extract TSMP/STMP entries for relative timestamps (ms since recording start)
+GPMF data is extracted from MP4 files using pure Go (`github.com/abema/go-mp4`):
+1. Open file, navigate `moov/trak` boxes to find the "GoPro MET" handler track
+2. Read sample table (stco/co64 offsets, stsz sizes, stsc mapping)
+3. Read each GPMF sample directly from the file via `io.ReadSeeker` — no temp files, no subprocess
+4. Custom KLV parser reads Key-Length-Value structure (DEVC → STRM → data keys)
+5. Extract GPSU/GPSUU entries for absolute UTC timestamps
+6. Extract STMP (µs, uint64) / TSMP (sample counter) for relative timestamps
+7. Extract GPS5 coordinates using per-stream SCAL factors
+
+**No ffmpeg needed** for GPMF extraction. ffmpeg is only used for `--update-metadata` (remux) and `--concat` (chapter joining).
 
 **Critical:** GPS timestamps are relative (milliseconds since recording started), not absolute. Must adjust by subtracting the relative offset from the absolute GPS time to get true recording start time. See `calculateRecordingStartTime()` in `actions.go`.
 
@@ -104,10 +108,11 @@ This is NOT an error - it's expected behavior. Use it to verify proper concatena
 
 ### External Dependencies
 
-**ffmpeg** - Video processing, GPMF stream extraction
-**ffprobe** - Metadata reading, stream detection
+**github.com/abema/go-mp4** - MP4 atom parsing for GPMF extraction (compiled in, no runtime install)
+**ffprobe** - MP4 container metadata (creation_time, timecode) — required for validation
+**ffmpeg** - Video remuxing and concatenation — required only for `--update-metadata` and `--concat`
 
-Both must be in PATH. Check with `exec.Command("ffmpeg", ...)` - will fail gracefully if not found.
+ffmpeg/ffprobe must be in PATH when needed. Validation-only runs (`--input` without action flags) need only ffprobe.
 
 ## Key Concepts
 

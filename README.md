@@ -152,117 +152,31 @@ npm run dev
 
 A Node.js/TypeScript reference implementation in `ts-validator/` directory. **Not actively maintained.** Use the Go version for all production work.
 
-## Features
-
-- Extracts file metadata (creation time, timecode) from GoPro MP4 files
-- Parses GPMF (GoPro Metadata Format) telemetry stream to extract GPS data
-- Validates internal consistency between timecode and creation_time
-- Reports files without GPS data or with metadata discrepancies
-
-## Installation
-
-```bash
-npm install
-```
-
-## Usage
-
-Place your GoPro videos in the `input-files` directory (maintains subdirectory structure), then run:
-
-```bash
-npm run dev
-```
-
-Or build and run:
-
-```bash
-npm run build
-npm start
-```
-
 ## How It Works
 
-The tool performs these validation checks:
-
-1. **Timecode vs Creation Time**: Compares the embedded timecode (time-of-day when recording started) against the creation_time metadata. A discrepancy > 2 minutes suggests incorrect metadata date.
-
-2. **GPS Data Availability**: Checks if the GPMF stream contains GPS5 telemetry data.
-
-3. **GPS Timestamp Validation**: Verifies that GPS timestamps start near 0 (recording start) and progress logically.
-
-## Output
-
-```
-✓ GH016761.MP4
-  Metadata Creation Time: 2016-01-01T00:10:36.000Z
-  Timecode: 00:10:35:50
-  GPS Samples: 8317
-  GPS First Timestamp: 0.000s
-  GPS Last Timestamp: 444.4s (duration: 444.4s)
-```
-
-## Known Limitations
-
-### Large Files (>2GB)
-The `gpmf-extract` library loads the entire MP4 file into memory, which fails for files larger than 2GB. These files will report "No GPS data found" even if GPS data exists.
-
-**Workarounds:**
-- Split large files before processing
-- Use alternative tools like `exiftool` or `ffprobe` for large file metadata extraction
-- Implement custom GPMF binary parser (future enhancement)
-
-### GPS Timestamps
-GPS timestamps in GPMF are **relative** (milliseconds since recording start), not absolute dates. The tool validates they start near 0 and progress logically but cannot independently verify the recording date without external reference.
-
-## Libraries Used
-
-- **gpmf-extract** - Extracts GPMF binary data from GoPro MP4 files
-- **gopro-telemetry** - Parses GPMF format to structured telemetry data (GPS, accelerometer, etc.)
-
-## Project Structure
-
-```
-src/
-  index.ts              - Main entry point and file scanner
-  metadata-extractor.ts - Extracts MP4 metadata using ffprobe
-  gpmf-extractor.ts     - Extracts GPS data from GPMF stream
-  comparator.ts         - Validates metadata consistency
-```
+1. Opens MP4 files and reads the GPMF telemetry track using pure Go (`github.com/abema/go-mp4`)
+2. Parses GPMF KLV structure to extract GPS timestamps, coordinates, and quality data
+3. Reads MP4 container metadata (creation_time, timecode) via `ffprobe`
+4. Compares GPS ground truth against file metadata to detect errors
+5. Applies corrections (rename, metadata update, concatenation) as requested
 
 ## Project Structure
 
 ```
 gopro_renamer/
-├── go-validator/          # Go implementation (handles large files)
-│   ├── main.go           # Entry point
-│   ├── gpmf.go           # Custom GPMF parser
-│   ├── metadata.go       # Metadata extraction
-│   ├── comparator.go     # Validation logic
+├── go-validator/          ⭐ Active development
+│   ├── main.go           # CLI parsing, orchestration
+│   ├── gpmf.go           # GPMF extraction (go-mp4) and KLV parsing
+│   ├── metadata.go       # MP4 metadata via ffprobe
+│   ├── comparator.go     # Validation logic (GPS vs file metadata)
+│   ├── actions.go        # File operations (rename, metadata update)
+│   ├── concat.go         # Chapter detection and concatenation
+│   ├── sidecar.go        # XMP sidecar generation
+│   ├── timezone.go       # GPS coordinate → timezone lookup
 │   └── validator.go      # Main validation orchestration
 │
-├── src/                  # TypeScript implementation
-│   ├── index.ts
-│   ├── gpmf-extractor.ts
-│   ├── metadata-extractor.ts
-│   └── comparator.ts
-│
-├── input-files/          # Place your GoPro videos here
-├── Makefile             # Build and run commands
-├── RESULTS.md           # Sample validation results
-└── README.md            # This file
+├── ts-validator/         📦 Archived (reference only)
+├── sample-input-files/   Test data (not in git)
+├── Makefile             Quick commands
+└── Documentation files
 ```
-
-## Results
-
-See [RESULTS.md](RESULTS.md) for detailed validation results on sample files.
-
-**Key Finding:** All sample files have internally consistent metadata. The Go version successfully processes all files including 5 large files (>2GB) that the TypeScript version cannot handle.
-
-## Future Enhancements
-
-- [ ] ✅ ~~Support for large files (>2GB) via streaming GPMF parser~~ **DONE (Go version)**
-- [ ] GPS coordinate extraction and mapping
-- [ ] Metadata correction/rewriting capabilities
-- [ ] Export validation report to JSON/CSV
-- [ ] Batch file renaming based on GPS timestamps
-- [ ] Web UI for drag-and-drop validation

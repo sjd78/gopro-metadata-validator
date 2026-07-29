@@ -1,6 +1,6 @@
 # Project Status
 
-**Last Updated:** 2026-03-24
+**Last Updated:** 2026-07-29
 
 ## Current State: Production Ready ✅
 
@@ -26,11 +26,13 @@ The **Go implementation** (`go-validator/`) is complete, tested, and ready for p
 |---------|--------|-------|
 | GPS absolute time extraction | ✅ Complete | Reads from GPMF stream |
 | GPS lock delay adjustment | ✅ Complete | Accounts for acquisition time |
+| Pure Go GPMF extraction | ✅ Complete | Uses go-mp4, no ffmpeg needed for validation |
 | Metadata validation | ✅ Complete | Compares file vs GPS |
 | Metadata update | ✅ Complete | Fixes creation_time |
 | File renaming | ✅ Complete | Organizes by GPS timestamp |
 | Chapter concatenation | ✅ Complete | Joins multi-part recordings |
-| Large file support | ✅ Complete | Unlimited file size |
+| XMP sidecar generation | ✅ Complete | GPS coords, timestamps, timezone, quality |
+| Large file support | ✅ Complete | Unlimited file size, co64 support |
 | Windows compatibility | ✅ Complete | Path handling fixed |
 | Cross-platform | ✅ Complete | Windows, Linux, macOS |
 | CLI arguments | ✅ Complete | Flexible input/output |
@@ -165,6 +167,11 @@ See [.github/README.md](.github/README.md) for development guidelines.
   - Made input directory a CLI argument
   - Archived TypeScript version
   - **Status: Production Ready**
+- **2026-07-29:**
+  - Replaced ffmpeg-based GPMF extraction with pure Go (github.com/abema/go-mp4)
+  - Fixed STMP uint64 parsing, per-stream SCAL scoping, single-scalar SCAL
+  - Fixed uniform stsz sample size handling
+  - Documented all GPMF keys (extracted, available, planned)
 
 ## Summary
 
