@@ -9,7 +9,6 @@ help:
 	@echo ""
 	@echo "Validation:"
 	@echo "  make go            - Build and run Go validator (production)"
-	@echo "  make ts            - Run TypeScript validator (archived/reference only)"
 	@echo ""
 	@echo "Actions (Go only):"
 	@echo "  make rename-dry    - Preview file renaming based on GPS time"
@@ -30,9 +29,6 @@ all: go
 
 go: build
 	@cd go-validator && ./gopro-validator --input ../sample-input-files
-
-ts:
-	@cd ts-validator && npm run dev
 
 build:
 	@echo "Building Go validator (version: $(VERSION))..."
@@ -71,4 +67,3 @@ concat: build
 
 clean:
 	@rm -f go-validator/gopro-validator
-	@rm -rf ts-validator/dist ts-validator/node_modules renamed-files concatenated-files
