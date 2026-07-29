@@ -195,6 +195,50 @@ func extractGPMFStream(filePath string) ([]byte, error) {
 	return buf, nil
 }
 
+// parseGPMFData extracts GPS-related fields from a raw GPMF binary payload.
+//
+// Keys we extract (all used by downstream consumers):
+//
+//	GPSU/GPSUU  Absolute UTC datetime      → GPS ground truth for timestamp validation
+//	STMP        Relative µs timestamp       → GPS lock delay, recording start time calculation
+//	TSMP        Sample counter (fallback)   → ordering token when STMP is absent
+//	GPS5        Lat/lon/alt/speed2D/speed3D → XMP sidecar coordinates, timezone detection
+//	SCAL        Scale factors for GPS5      → required to decode GPS5 raw integers
+//	GPSF        GPS fix type (0/2/3)        → data quality indicator, written to XMP
+//	GPSP        Precision / DOP             → accuracy indicator, written to XMP
+//	DEVC        Device container            → must recurse to reach STRM children
+//	STRM        Stream container            → must recurse with fresh SCAL scope
+//
+// Keys available in the GPMF stream but not currently extracted:
+//
+//	ACCL  3-axis accelerometer (m/s²)     — motion/vibration analysis
+//	GYRO  3-axis gyroscope (rad/s)        — rotation/stabilization data
+//	CORI  Camera orientation (quaternion)  — IMU-derived camera pointing
+//	IORI  Image orientation (quaternion)   — stabilized frame orientation
+//	GRAV  Gravity vector                   — tilt relative to earth
+//	WNDM  Wind meter (dB)                 — audio-based wind detection
+//	MWET  Microphone wet (moisture)       — water detection on mic
+//	ISOE  ISO exposure                    — sensor sensitivity
+//	SHUT  Shutter speed (1/s)             — exposure time
+//	WBAL  White balance (Kelvin)          — color temperature
+//	WRGB  White balance RGB gains         — per-channel color correction
+//	YAVG  Average luminance              — scene brightness
+//	SCEN  Scene classification            — AI scene detection labels
+//	HUES  Predominant hues               — color histogram data
+//	FACE  Face detection boxes            — bounding box coordinates
+//	GPS9  9-axis GPS (Hero12+)            — extended GPS with DOP/fix per sample
+//
+// Planned for custom XMP namespace (live in moov/udta/GPMF, not per-sample stream):
+//
+//	MUID  Media ID                — session grouping across chapter files
+//	CPID  Capture Identifier      — per-file capture ID
+//	CPIN  Capture number in group — chapter index within a recording session
+//	CASN  Camera serial number    — hardware identifier
+//	FMWR  Firmware version        — software version string
+//	MINF  Camera model info       — model/variant identifier
+//
+// Note: MUID, CPID, and CPIN are listed in the official GPMF spec but their
+// format and semantics are undocumented — must be determined empirically.
 func parseGPMFData(data []byte) (*GPSData, error) {
 	result := &GPSData{
 		SampleCount: 0,
@@ -205,7 +249,7 @@ func parseGPMFData(data []byte) (*GPSData, error) {
 	timestamps := make([]int64, 0)
 	gpsTimes := make([]time.Time, 0)
 	var scaleFactors []int32
-	var currentTimestamp int64 // relative ms paired with the next GPS5 block
+	var currentTimestamp int64
 
 	buf := bytes.NewReader(data)
 
@@ -215,7 +259,6 @@ func parseGPMFData(data []byte) (*GPSData, error) {
 			if err == io.EOF {
 				break
 			}
-			// Skip one byte and try to re-sync
 			if buf.Len() > 0 {
 				buf.ReadByte()
 			}
@@ -224,42 +267,31 @@ func parseGPMFData(data []byte) (*GPSData, error) {
 
 		keyStr := string(klv.Key[:])
 
-		// TSMP — Total SaMPle count (running counter, not a timestamp).
-		// We record it as a relative-ms placeholder only when we have no
-		// STMP data; it is superseded by STMP when present.
 		if keyStr == "TSMP" && klv.Type == 'L' {
 			if len(klv.Data) >= 4 {
-				// TSMP is a sample counter; use it as a last-resort ordering
-				// token only — actual timing comes from STMP or GPSU.
 				count := int64(binary.BigEndian.Uint32(klv.Data[:4]))
 				currentTimestamp = count
 				timestamps = append(timestamps, currentTimestamp)
 			}
 		}
 
-		// STMP — Sample TiMesteP in microseconds (uint64, type 'J').
-		// Convert µs → ms for internal use.
 		if keyStr == "STMP" && klv.Type == 'J' {
 			if len(klv.Data) >= 8 {
 				us := binary.BigEndian.Uint64(klv.Data[:8])
-				currentTimestamp = int64(us / 1000) // µs → ms
+				currentTimestamp = int64(us / 1000)
 				timestamps = append(timestamps, currentTimestamp)
 			}
 		}
 
-		// SCAL — scale factor(s), scoped to the current STRM container.
-		// Type 'l' = []int32, type 's' = []int16, type 'S' = []uint16.
 		if keyStr == "SCAL" {
 			scaleFactors = parseScaleFactors(klv)
 		}
 
-		// GPS5 — lat, lon, alt, speed2D, speed3D (int16 or int32 per sample)
 		if keyStr == "GPS5" && (klv.Type == 's' || klv.Type == 'l') {
 			coords := parseGPS5(klv, scaleFactors, currentTimestamp)
 			result.Coordinates = append(result.Coordinates, coords...)
 		}
 
-		// GPSF — GPS fix type (0=none, 2=2D, 3=3D)
 		if keyStr == "GPSF" && klv.Type == 'L' {
 			if len(klv.Data) >= 4 {
 				fix := binary.BigEndian.Uint32(klv.Data[:4])
@@ -278,7 +310,6 @@ func parseGPMFData(data []byte) (*GPSData, error) {
 			}
 		}
 
-		// GPSP — GPS precision / DOP (uint16, scaled ×100)
 		if keyStr == "GPSP" && klv.Type == 'H' {
 			if len(klv.Data) >= 2 {
 				dop := float64(binary.BigEndian.Uint16(klv.Data[:2])) / 100.0
@@ -286,8 +317,6 @@ func parseGPMFData(data []byte) (*GPSData, error) {
 			}
 		}
 
-		// GPSU / GPSUU — GPS absolute UTC datetime string "YYMMDDHHMMSS.sss"
-		// Type 'U' is the canonical GPMF UTC string type; 'c' also seen in wild.
 		if (keyStr == "GPSU" || strings.HasPrefix(keyStr, "GPSU")) &&
 			(klv.Type == 'U' || klv.Type == 'c') {
 			gpsTimeStr := strings.TrimSpace(string(klv.Data))
@@ -302,9 +331,6 @@ func parseGPMFData(data []byte) (*GPSData, error) {
 			}
 		}
 
-		// DEVC / STRM — recurse into nested containers.
-		// Reset per-stream state (scaleFactors) on each STRM so that a
-		// SCAL from one sensor stream cannot bleed into another.
 		if keyStr == "DEVC" && len(klv.Data) > 0 {
 			nested, _ := parseGPMFData(klv.Data)
 			if nested != nil {
@@ -312,8 +338,6 @@ func parseGPMFData(data []byte) (*GPSData, error) {
 			}
 		}
 		if keyStr == "STRM" && len(klv.Data) > 0 {
-			// Each STRM is self-contained: parse with fresh state so its
-			// own SCAL applies only to its own GPS5/ACCL/GYRO data.
 			nested, _ := parseGPMFData(klv.Data)
 			if nested != nil {
 				mergeGPSData(result, nested, &timestamps, &gpsTimes)
