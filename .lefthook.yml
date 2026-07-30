@@ -5,7 +5,7 @@ pre-commit:
   parallel: true
   commands:
     format:
-      glob: "go-validator/*.go"
+      glob: "go-validator/{cmd,internal}/**/*.go"
       run: |
         echo "🔧 Formatting staged Go files..."
         gofmt -w {staged_files}
@@ -13,7 +13,7 @@ pre-commit:
       stage_fixed: true
 
     vet:
-      glob: "go-validator/*.go"
+      glob: "go-validator/{cmd,internal}/**/*.go"
       run: |
         echo "🔍 Running go vet..."
         cd go-validator && go vet ./...

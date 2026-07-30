@@ -1,4 +1,4 @@
-package main
+package validator
 
 import (
 	"fmt"
@@ -69,7 +69,7 @@ func detectChapterSeries(results []*ValidationResult) map[string]*ChapterSeries 
 	return filtered
 }
 
-func concatenateChapters(results []*ValidationResult, outputDir string, dryRun bool) int {
+func ConcatenateChapters(results []*ValidationResult, outputDir string, dryRun bool) int {
 	series := detectChapterSeries(results)
 
 	if len(series) == 0 {

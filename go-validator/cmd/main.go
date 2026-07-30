@@ -7,6 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"gopro-validator/internal/validator"
 )
 
 var (
@@ -26,6 +28,8 @@ var (
 
 func main() {
 	flag.Parse()
+
+	validator.Version = Version
 
 	// Handle version flag
 	if *versionFlag {
@@ -59,11 +63,11 @@ func main() {
 
 	fmt.Printf("Found %d MP4 files\n\n", len(files))
 
-	results := make([]*ValidationResult, 0, len(files))
+	results := make([]*validator.ValidationResult, 0, len(files))
 
 	for _, file := range files {
 		fmt.Printf("Processing: %s\n", file)
-		result, err := validateFile(file)
+		result, err := validator.ValidateFile(file)
 		if err != nil {
 			log.Printf("Error processing %s: %v", file, err)
 			continue
@@ -90,21 +94,21 @@ func main() {
 		fmt.Println("\n" + "================================================================================")
 		fmt.Println("FILE RENAMING PLAN")
 		fmt.Println("================================================================================")
-		renamedCount = renameFilesBasedOnGPS(results, *outputDir, *dryRun)
+		renamedCount = validator.RenameFilesBasedOnGPS(results, *outputDir, *dryRun)
 	}
 
 	if *updateMetadata {
 		fmt.Println("\n" + "================================================================================")
 		fmt.Println("METADATA UPDATE PLAN")
 		fmt.Println("================================================================================")
-		updateFileMetadata(results, *dryRun)
+		validator.UpdateFileMetadata(results, *dryRun)
 	}
 
 	if *concatChapters {
 		fmt.Println("\n" + "================================================================================")
 		fmt.Println("CHAPTER CONCATENATION PLAN")
 		fmt.Println("================================================================================")
-		concatCount = concatenateChapters(results, *concatOutputDir, *dryRun)
+		concatCount = validator.ConcatenateChapters(results, *concatOutputDir, *dryRun)
 	}
 
 	// Show exiftool instructions if sidecars were created
@@ -131,7 +135,7 @@ func findMP4Files(root string) ([]string, error) {
 	return files, err
 }
 
-func printResults(results []*ValidationResult) {
+func printResults(results []*validator.ValidationResult) {
 	fmt.Println("\n" + "================================================================================")
 	fmt.Println("VALIDATION RESULTS")
 	fmt.Println("================================================================================")
@@ -221,12 +225,12 @@ func printResults(results []*ValidationResult) {
 	fmt.Println("================================================================================")
 }
 
-func writeSidecarFiles(results []*ValidationResult, dryRun bool) {
+func writeSidecarFiles(results []*validator.ValidationResult, dryRun bool) {
 	written := 0
 	skipped := 0
 
 	for _, result := range results {
-		if err := WriteSidecarFile(result, dryRun); err != nil {
+		if err := validator.WriteSidecarFile(result, dryRun); err != nil {
 			fmt.Printf("✗ Error writing sidecar for %s: %v\n",
 				filepath.Base(result.FilePath), err)
 			skipped++

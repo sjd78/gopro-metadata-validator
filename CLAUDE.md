@@ -14,7 +14,7 @@ GoPro Metadata Validator & Fixer - validates and corrects GoPro video metadata u
 ### Build
 ```bash
 cd go-validator
-go build -o gopro-validator
+make build
 ```
 
 ### Test with Sample Files
@@ -35,16 +35,14 @@ cd go-validator
 
 ### Development
 ```bash
-# Build and test
 cd go-validator
-go build -o gopro-validator
+make build                              # Build binary
 ./gopro-validator --input ../sample-input-files
 
-# Format code
-go fmt ./...
-
-# Check for issues
-go vet ./...
+make fmt                                # Format code
+make vet                                # Static analysis
+make deps                               # Download/tidy dependencies
+make test                               # Run tests
 ```
 
 ## Architecture
@@ -59,14 +57,14 @@ MP4 File → ffprobe (metadata) → Metadata struct
 
 ### Key Components
 
-**`main.go`** - CLI argument parsing, orchestration, output formatting
-**`gpmf.go`** - GPMF stream extraction and parsing (KLV structure)
-**`metadata.go`** - MP4 metadata extraction via ffprobe
-**`comparator.go`** - Validation logic, compares GPS vs file metadata
-**`actions.go`** - File operations (rename, metadata updates, streaming file copy)
-**`concat.go`** - Chapter detection and concatenation
-**`sidecar.go`** - XMP sidecar file generation with GPS metadata
-**`validator.go`** - Main validation orchestration
+**`cmd/main.go`** - CLI argument parsing, orchestration, output formatting
+**`internal/validator/gpmf.go`** - GPMF stream extraction and parsing (KLV structure)
+**`internal/validator/metadata.go`** - MP4 metadata extraction via ffprobe
+**`internal/validator/comparator.go`** - Validation logic, compares GPS vs file metadata
+**`internal/validator/actions.go`** - File operations (rename, metadata updates, streaming file copy)
+**`internal/validator/concat.go`** - Chapter detection and concatenation
+**`internal/validator/sidecar.go`** - XMP sidecar file generation with GPS metadata
+**`internal/validator/validator.go`** - Types and main validation orchestration
 
 ### GPMF Parsing Strategy
 
@@ -81,7 +79,7 @@ GPMF data is extracted from MP4 files using pure Go (`github.com/abema/go-mp4`):
 
 **No ffmpeg needed** for GPMF extraction. ffmpeg is only used for `--update-metadata` (remux) and `--concat` (chapter joining).
 
-**Critical:** GPS timestamps are relative (milliseconds since recording started), not absolute. Must adjust by subtracting the relative offset from the absolute GPS time to get true recording start time. See `calculateRecordingStartTime()` in `actions.go`.
+**Critical:** GPS timestamps are relative (milliseconds since recording started), not absolute. Must adjust by subtracting the relative offset from the absolute GPS time to get true recording start time. See `calculateRecordingStartTime()` in `internal/validator/actions.go`.
 
 ### Chapter File Detection
 
@@ -141,7 +139,7 @@ Note: In dry-run mode, unique filename generation tracks paths in memory to corr
 ## Common Development Patterns
 
 ### Adding a New CLI Flag
-1. Add to flag variables in `main.go`
+1. Add to flag variables in `cmd/main.go`
 2. Add logic in `main()` to call appropriate function
 3. Update help text in flag definition
 4. Update `go-validator/README.md` with new flag
@@ -149,12 +147,12 @@ Note: In dry-run mode, unique filename generation tracks paths in memory to corr
 
 ### Adding a New GPMF Field
 1. Identify the GPMF key (e.g., GPSU, STMP, GPS5)
-2. Add parsing in `parseGPMFData()` in `gpmf.go`
-3. Add field to `GPSData` struct in `validator.go`
+2. Add parsing in `parseGPMFData()` in `internal/validator/gpmf.go`
+3. Add field to `GPSData` struct in `internal/validator/validator.go`
 4. Update comparator logic if needed
 
 ### Adding a New Validation Check
-1. Add logic to `compareMetadata()` in `comparator.go`
+1. Add logic to `compareMetadata()` in `internal/validator/comparator.go`
 2. Append issues to the `issues` slice
 3. Test with sample files that exhibit the issue
 

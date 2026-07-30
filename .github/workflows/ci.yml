@@ -27,9 +27,9 @@ jobs:
       - name: Check formatting
         working-directory: ./go-validator
         run: |
-          if [ "$(gofmt -l . | wc -l)" -gt 0 ]; then
+          if [ "$(gofmt -l cmd/ internal/ | wc -l)" -gt 0 ]; then
             echo "The following files are not formatted:"
-            gofmt -l .
+            gofmt -l cmd/ internal/
             exit 1
           fi
         shell: bash
@@ -40,7 +40,7 @@ jobs:
 
       - name: Build
         working-directory: ./go-validator
-        run: go build -v -o gopro-validator
+        run: go build -v -o gopro-validator ./cmd/
 
       - name: Verify binary exists
         working-directory: ./go-validator

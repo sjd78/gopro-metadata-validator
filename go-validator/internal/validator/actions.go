@@ -1,4 +1,4 @@
-package main
+package validator
 
 import (
 	"fmt"
@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-func renameFilesBasedOnGPS(results []*ValidationResult, outputDir string, dryRun bool) int {
+func RenameFilesBasedOnGPS(results []*ValidationResult, outputDir string, dryRun bool) int {
 	if !dryRun {
 		// Create output directory
 		if err := os.MkdirAll(outputDir, 0755); err != nil {
@@ -121,7 +121,7 @@ func renameFilesBasedOnGPS(results []*ValidationResult, outputDir string, dryRun
 	return renamed
 }
 
-func updateFileMetadata(results []*ValidationResult, dryRun bool) {
+func UpdateFileMetadata(results []*ValidationResult, dryRun bool) {
 	updated := 0
 	skipped := 0
 

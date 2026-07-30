@@ -1,8 +1,7 @@
-.PHONY: all go ts clean help build build-release rename rename-dry update update-dry concat concat-dry fix-all fix-all-dry
+.PHONY: all go clean help build build-release rename rename-dry update update-dry concat concat-dry fix-all fix-all-dry
 
 # Version can be overridden: make build VERSION=v1.0.0
 VERSION ?= dev
-LDFLAGS := -ldflags "-X main.Version=$(VERSION)"
 
 help:
 	@echo "GoPro Metadata Validator"
@@ -31,15 +30,10 @@ go: build
 	@cd go-validator && ./gopro-validator --input ../sample-input-files
 
 build:
-	@echo "Building Go validator (version: $(VERSION))..."
-	@cd go-validator && go build $(LDFLAGS) -o gopro-validator
+	@$(MAKE) -C go-validator build VERSION=$(VERSION)
 
 build-release:
-	@echo "Building optimized release binary (version: $(VERSION))..."
-	@cd go-validator && go build \
-		-ldflags "-s -w -X main.Version=$(VERSION)" \
-		-trimpath \
-		-o gopro-validator
+	@$(MAKE) -C go-validator build-release VERSION=$(VERSION)
 
 rename-dry: build
 	@cd go-validator && ./gopro-validator --input ../sample-input-files --rename --dry-run
@@ -66,4 +60,4 @@ concat: build
 	@cd go-validator && ./gopro-validator --input ../sample-input-files --concat
 
 clean:
-	@rm -f go-validator/gopro-validator
+	@$(MAKE) -C go-validator clean

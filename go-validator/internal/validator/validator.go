@@ -1,8 +1,10 @@
-package main
+package validator
 
 import (
 	"time"
 )
+
+var Version = "dev"
 
 type Metadata struct {
 	CreationTime *time.Time
@@ -42,7 +44,7 @@ type ValidationResult struct {
 	GPSData  *GPSData
 }
 
-func validateFile(filePath string) (*ValidationResult, error) {
+func ValidateFile(filePath string) (*ValidationResult, error) {
 	result := &ValidationResult{
 		FilePath: filePath,
 		Valid:    true,

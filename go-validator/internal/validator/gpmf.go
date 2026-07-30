@@ -1,4 +1,4 @@
-package main
+package validator
 
 import (
 	"bytes"
@@ -407,7 +407,7 @@ func parseScaleFactors(klv *gpmfKLV) []int32 {
 			if off+2 > len(klv.Data) {
 				break
 			}
-			out = append(out, int32(int16(binary.BigEndian.Uint16(klv.Data[off : off+2]))))
+			out = append(out, int32(int16(binary.BigEndian.Uint16(klv.Data[off:off+2]))))
 		}
 	case 'S': // uint16
 		for i := 0; i < int(klv.Repeat); i++ {

@@ -52,7 +52,8 @@ jobs:
           go build \
             -ldflags "-s -w -X main.Version=latest-${{ env.SHORT_SHA }}" \
             -trimpath \
-            -o gopro-validator-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.ext }}
+            -o gopro-validator-${{ matrix.goos }}-${{ matrix.goarch }}${{ matrix.ext }} \
+            ./cmd/
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
